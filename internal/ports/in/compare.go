@@ -8,4 +8,5 @@ import (
 
 type CompareInt interface {
 	Execute(ctx context.Context, localPath, remotePath string) ([]domain.Difference, error)
+	ExecuteWithOptions(ctx context.Context, localPath, remotePath string, crossPlatform bool) ([]domain.Difference, error)
 }

@@ -42,6 +42,7 @@ func (cc *ConfigCollector) Collect(ctx context.Context, s *domain.Snapshot) erro
 		}
 
 		key, val := parts[0], parts[1]
+		val = strings.TrimRight(val, "\r")
 		isSecret := isSensitiveKey(key)
 		if isSecret {
 			cfg.Variables[key] = &domain.ConfigValue{

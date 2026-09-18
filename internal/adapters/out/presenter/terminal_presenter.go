@@ -59,6 +59,9 @@ func (tp *TerminalPresenter) RenderSnapshot(snap *domain.Snapshot) error {
 		if rt.Kernel != "" {
 			fmt.Fprintf(tp.out, "  Kernel:       %s\n", rt.Kernel)
 		}
+		if rt.Virtualization != "" {
+			fmt.Fprintf(tp.out, "  Virtualization: %s\n", rt.Virtualization)
+		}
 		if rt.Hostname != "" {
 			fmt.Fprintf(tp.out, "  Hostname:     %s\n", rt.Hostname)
 		}

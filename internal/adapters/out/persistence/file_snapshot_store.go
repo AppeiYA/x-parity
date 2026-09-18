@@ -59,12 +59,13 @@ type buildDTO struct {
 }
 
 type runtimeDTO struct {
-	OS           string            `json:"os"`
-	Architecture string            `json:"architecture"`
-	Kernel       string            `json:"kernel,omitempty"`
-	Hostname     string            `json:"hostname,omitempty"`
-	Runtimes     map[string]string `json:"runtimes,omitempty"`
-	State        string            `json:"state"`
+	OS             string            `json:"os"`
+	Architecture   string            `json:"architecture"`
+	Kernel         string            `json:"kernel,omitempty"`
+	Hostname       string            `json:"hostname,omitempty"`
+	Virtualization string            `json:"virtualization,omitempty"`
+	Runtimes       map[string]string `json:"runtimes,omitempty"`
+	State          string            `json:"state"`
 }
 
 type configurationDTO struct {
@@ -174,12 +175,13 @@ func toDTO(snap *domain.Snapshot) *snapshotDTO {
 
 	if rt := snap.Runtime(); rt != nil {
 		dto.Runtime = &runtimeDTO{
-			OS:           rt.OS,
-			Architecture: rt.Architecture,
-			Kernel:       rt.Kernel,
-			Hostname:     rt.Hostname,
-			Runtimes:     rt.Runtimes,
-			State:        string(rt.State),
+			OS:             rt.OS,
+			Architecture:   rt.Architecture,
+			Kernel:         rt.Kernel,
+			Hostname:       rt.Hostname,
+			Virtualization: rt.Virtualization,
+			Runtimes:       rt.Runtimes,
+			State:          string(rt.State),
 		}
 	}
 
@@ -277,6 +279,7 @@ func fromDTO(dto *snapshotDTO) (*domain.Snapshot, error) {
 		}
 		rt, err := domain.NewRuntime(dto.Runtime.OS, dto.Runtime.Architecture, dto.Runtime.Kernel, dto.Runtime.Hostname, dto.Runtime.Runtimes, st)
 		if err == nil {
+			rt.Virtualization = dto.Runtime.Virtualization
 			snap.SetRuntime(rt)
 		}
 	}

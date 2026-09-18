@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json
+PackageIdentifier: AppeiYA.x-parity
+PackageVersion: 1.0.0
+DefaultLocale: en-US
+Publisher: AppeiYA
+PackageName: X-Parity
+License: MIT
+LicenseUrl: https://github.com/AppeiYA/x-parity/blob/main/LICENSE
+ShortDescription: High-performance cross-platform environment drift detection and parity verification engine.
+Description: |
+  X-Parity mathematically eliminates the "works on my machine" syndrome by capturing host OS, kernel,
+  language runtimes, and sanitized environment configurations across Windows, Linux, and macOS,
+  executing semantic difference analysis with cross-platform normalization.
+Moniker: x-parity
+Tags:
+  - devops
+  - ci-cd
+  - drift-detection
+  - parity
+  - cli
+  - systems-engineering
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/AppeiYA/x-parity/releases/download/v1.0.0/x-parity-windows-amd64.exe
+    InstallerSha256: DEBBE66357123F676E911D48926EE5977CB536E80995EF1B020B5C7ACA6ADCE9
+    Commands:
+      - x-parity
+ManifestType: singleton
+ManifestVersion: 1.6.0

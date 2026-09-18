@@ -36,15 +36,56 @@ func (rc *RuntimeCollector) Collect(ctx context.Context, s *domain.Snapshot) err
 		rt.Runtimes = make(map[string]string)
 	}
 
-	if out, err := exec.CommandContext(ctx, "go", "version").Output(); err == nil {
-		parts := strings.Fields(string(out))
-		if len(parts) >= 3 {
-			rt.Runtimes["go"] = strings.TrimPrefix(parts[2], "go")
+	// 1. Go Runtime
+	if _, err := exec.LookPath("go"); err == nil {
+		if out, err := exec.CommandContext(ctx, "go", "version").Output(); err == nil {
+			parts := strings.Fields(string(out))
+			if len(parts) >= 3 {
+				rt.Runtimes["go"] = strings.TrimPrefix(parts[2], "go")
+			}
 		}
 	}
 
-	if out, err := exec.CommandContext(ctx, "node", "--version").Output(); err == nil {
-		rt.Runtimes["node"] = strings.TrimSpace(strings.TrimPrefix(string(out), "v"))
+	// 2. Node.js Runtime
+	if _, err := exec.LookPath("node"); err == nil {
+		if out, err := exec.CommandContext(ctx, "node", "--version").Output(); err == nil {
+			rt.Runtimes["node"] = strings.TrimSpace(strings.TrimPrefix(string(out), "v"))
+		}
+	}
+
+	// 3. Python Runtime (python3 on Unix, python or py on Windows)
+	pythonBins := []string{"python3", "python", "py"}
+	for _, bin := range pythonBins {
+		if _, err := exec.LookPath(bin); err == nil {
+			if out, err := exec.CommandContext(ctx, bin, "--version").Output(); err == nil {
+				parts := strings.Fields(string(out))
+				if len(parts) >= 2 {
+					rt.Runtimes["python"] = parts[1]
+					break
+				}
+			}
+		}
+	}
+
+	// 4. .NET Runtime
+	if _, err := exec.LookPath("dotnet"); err == nil {
+		if out, err := exec.CommandContext(ctx, "dotnet", "--version").Output(); err == nil {
+			rt.Runtimes["dotnet"] = strings.TrimSpace(string(out))
+		}
+	}
+
+	// 5. PowerShell
+	pwshBins := []string{"pwsh", "powershell"}
+	for _, bin := range pwshBins {
+		if _, err := exec.LookPath(bin); err == nil {
+			if out, err := exec.CommandContext(ctx, bin, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()").Output(); err == nil {
+				ver := strings.TrimSpace(string(out))
+				if ver != "" {
+					rt.Runtimes["powershell"] = ver
+					break
+				}
+			}
+		}
 	}
 
 	return nil

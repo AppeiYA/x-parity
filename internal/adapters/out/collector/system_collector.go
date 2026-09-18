@@ -46,4 +46,5 @@ func (sc *SystemCollector) Collect(ctx context.Context, s *domain.Snapshot) erro
 	}
 
 	return nil
+	return collectPlatformTelemetry(ctx, rt)
 }

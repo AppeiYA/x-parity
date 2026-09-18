@@ -7,6 +7,7 @@ type Runtime struct {
 	Architecture string
 	Kernel string
 	Hostname string
+	Virtualization string
 	Runtimes map[string]string
 	State EvidenceState
 }

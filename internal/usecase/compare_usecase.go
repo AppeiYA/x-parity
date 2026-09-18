@@ -31,6 +31,10 @@ func NewCompareUsecase(store portout.SnapshotStore, diffEngine *domain.DiffEngin
 }
 
 func (c *CompareUsecase) Execute(ctx context.Context, localPath, remotePath string) ([]domain.Difference, error) {
+	return c.ExecuteWithOptions(ctx, localPath, remotePath, false)
+}
+
+func (c *CompareUsecase) ExecuteWithOptions(ctx context.Context, localPath, remotePath string, crossPlatform bool) ([]domain.Difference, error) {
 	if localPath == "" {
 		return nil, ErrEmptyLocalPath
 	}
@@ -54,7 +58,7 @@ func (c *CompareUsecase) Execute(ctx context.Context, localPath, remotePath stri
 		return nil, fmt.Errorf("remote snapshot (%s): %w", remotePath, ErrNilSnapshot)
 	}
 
-	diffs, err := c.diffEngine.Compare(*localSnap, *remoteSnap)
+	diffs, err := c.diffEngine.CompareWithOptions(*localSnap, *remoteSnap, crossPlatform)
 	if err != nil {
 		return nil, fmt.Errorf("diff comparison failed: %w", err)
 	}

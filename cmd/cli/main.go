@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/AppeiYA/x-parity/internal/adapters/out/collector"
@@ -55,6 +57,8 @@ func main() {
 		runInspect(ctx, os.Args[2:], inspectUsecase, termPresenter)
 	case "diagnose":
 		runDiagnose(ctx, os.Args[2:], diagnoseUsecase, termPresenter)
+	case "install":
+		runInstall()
 	case "help", "-h", "--help":
 		printUsage()
 	default:
@@ -108,16 +112,30 @@ func runCapture(ctx context.Context, args []string, uc *usecase.CaptureUsecase, 
 }
 
 func runCompare(ctx context.Context, args []string, uc *usecase.CompareUsecase, p portout.PresenterInt) {
-	if len(args) < 2 {
-		p.RenderError(fmt.Errorf("compare requires two snapshot file paths"))
-		fmt.Fprintf(os.Stderr, "Usage: x-parity compare <local_snapshot.json> <remote_snapshot.json>\n")
+	fs := flag.NewFlagSet("compare", flag.ExitOnError)
+	crossPlatform := fs.Bool("cross-platform", false, "Permit OS platform divergence (treat host OS/path differences as informational, e.g. Docker/VM)")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: x-parity compare [-cross-platform] <local_snapshot.json> <remote_snapshot.json>\n\nFlags:\n")
+		fs.PrintDefaults()
+	}
+
+	if err := fs.Parse(args); err != nil {
+		p.RenderError(err)
 		os.Exit(1)
 	}
 
-	localPath := args[0]
-	remotePath := args[1]
+	posArgs := fs.Args()
+	if len(posArgs) < 2 {
+		p.RenderError(fmt.Errorf("compare requires two snapshot file paths"))
+		fs.Usage()
+		os.Exit(1)
+	}
 
-	diffs, err := uc.Execute(ctx, localPath, remotePath)
+	localPath := posArgs[0]
+	remotePath := posArgs[1]
+
+	diffs, err := uc.ExecuteWithOptions(ctx, localPath, remotePath, *crossPlatform)
 	if err != nil {
 		p.RenderError(fmt.Errorf("comparison failed: %w", err))
 		os.Exit(1)
@@ -125,6 +143,19 @@ func runCompare(ctx context.Context, args []string, uc *usecase.CompareUsecase, 
 
 	if err := p.RenderDifferences(diffs); err != nil {
 		p.RenderError(err)
+	}
+
+	hasActionableDiff := false
+	for _, d := range diffs {
+		if d.Severity() == domain.SeverityCritical || d.Severity() == domain.SeverityWarning {
+			hasActionableDiff = true
+			break
+		}
+	}
+
+	if hasActionableDiff {
+		// Exit with status 1 on breaking differences to fail CI/CD pipelines
+		os.Exit(1)
 	}
 }
 
@@ -168,6 +199,75 @@ func runDiagnose(ctx context.Context, args []string, uc *usecase.DiagnoseUsecase
 	}
 }
 
+func runInstall() {
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error determining current executable path: %v\n", err)
+		os.Exit(1)
+	}
+	execPath, err = filepath.EvalSymlinks(execPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving executable symlink: %v\n", err)
+		os.Exit(1)
+	}
+
+	targetDir := os.Getenv("INSTALL_DIR")
+	targetName := "x-parity"
+
+	if runtime.GOOS == "windows" {
+		targetName = "x-parity.exe"
+		if targetDir == "" {
+			localAppData := os.Getenv("LOCALAPPDATA")
+			if localAppData != "" {
+				targetDir = filepath.Join(localAppData, "Programs", "x-parity")
+			} else {
+				targetDir = filepath.Join(os.Getenv("USERPROFILE"), "bin")
+			}
+		}
+	} else if targetDir == "" {
+		targetDir = "/usr/local/bin"
+		// Test if /usr/local/bin is writable
+		testFile := filepath.Join(targetDir, ".x-parity-write-test")
+		if err := os.WriteFile(testFile, []byte(""), 0644); err != nil {
+			// Not root or writable; install into ~/.local/bin
+			home, err := os.UserHomeDir()
+			if err == nil && home != "" {
+				targetDir = filepath.Join(home, ".local", "bin")
+			}
+		} else {
+			_ = os.Remove(testFile)
+		}
+	}
+
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create directory %s: %v\n", targetDir, err)
+		os.Exit(1)
+	}
+
+	destPath := filepath.Join(targetDir, targetName)
+
+	// Read current binary bytes
+	binaryBytes, err := os.ReadFile(execPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to read binary: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Write to destination
+	if err := os.WriteFile(destPath, binaryBytes, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write to %s: %v\n(If installing system-wide, try: sudo ./x-parity install)\n", destPath, err)
+		os.Exit(1)
+	}
+
+	fmt.Println("==================================================")
+	fmt.Printf("✓ Successfully installed X-Parity to:\n  %s\n", destPath)
+	fmt.Println("==================================================")
+	fmt.Println("You can now run 'x-parity' from any directory in your terminal.")
+	fmt.Println("\nVerify installation:")
+	fmt.Println("  x-parity help")
+	fmt.Println("  x-parity capture -app myapp -env local -out snap.json")
+}
+
 func printUsage() {
 	fmt.Printf(`X-Parity: Environment Drift Detection & Parity Verification CLI
 
@@ -176,9 +276,11 @@ Usage:
 
 Commands:
   capture   Capture environment telemetry and generate a snapshot
-  compare   Compare two snapshots and report parity differences
+  compare   Compare two snapshots and report parity differences (exits 1 if drift detected)
+            Flags: -cross-platform (permits OS divergence for Docker/VM comparisons)
   inspect   Inspect and print details of a single snapshot
   diagnose  Analyze a snapshot and produce root-cause hypotheses
+  install   Install the x-parity binary globally into your system PATH
   help      Display help information
 
 Examples:
@@ -186,5 +288,6 @@ Examples:
   x-parity compare ./local_snap.json ./remote_snap.json
   x-parity inspect ./local_snap.json
   x-parity diagnose ./local_snap.json
+  x-parity install
 `)
 }
