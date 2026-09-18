@@ -57,19 +57,19 @@ func (c *CaptureUsecase) Execute(ctx context.Context, cmd portin.CaptureCommand)
 			if err := collector.Collect(ctx, snapshot); err != nil {
 				mu.Lock()
 				switch collector.Name() {
-				case "source":
+				case portout.CollectorGit, portout.CollectorSource:
 					src, _ := domain.NewSource("", "", "", "", false, domain.StateUnavailable)
 					snapshot.SetSource(src)
-				case "runtime":
+				case portout.CollectorSystem, portout.CollectorRuntime:
 					rt, _ := domain.NewRuntime("unknown", "unknown", "", "", nil, domain.StateUnavailable)
 					snapshot.SetRuntime(rt)
-				case "config", "configuration":
+				case portout.CollectorEnv, portout.CollectorConfig, portout.CollectorConfiguration:
 					cfg, _ := domain.NewConfiguration(make(map[string]*domain.ConfigValue))
 					snapshot.SetConfiguration(cfg)
-				case "build":
+				case portout.CollectorBuild:
 					bld, _ := domain.NewBuild("", nil, nil)
 					snapshot.SetBuild(bld)
-				case "deployment":
+				case portout.CollectorDeployment:
 					dep, _ := domain.NewDeployment("", "", "")
 					snapshot.SetDeployment(dep)
 				}

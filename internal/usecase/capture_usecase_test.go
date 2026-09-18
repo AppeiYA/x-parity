@@ -116,14 +116,14 @@ func TestCaptureUsecase_Execute_Success(t *testing.T) {
 
 func TestCaptureUsecase_Execute_GracefulDegradation(t *testing.T) {
 	sourceCol := &mockCollector{
-		name: "source",
+		name: portout.CollectorGit,
 		collect: func(ctx context.Context, snapshot *domain.Snapshot) error {
 			return errors.New("git command failed")
 		},
 	}
 
 	runtimeCol := &mockCollector{
-		name: "runtime",
+		name: portout.CollectorSystem,
 		collect: func(ctx context.Context, snapshot *domain.Snapshot) error {
 			return errors.New("uname command failed")
 		},

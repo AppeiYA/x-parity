@@ -8,6 +8,26 @@ type ConfigValue struct {
 	Sensitive bool
 }
 
+type SensitivePatterns string
+const (
+	PatternKey SensitivePatterns = "KEY"
+	PatternPassword SensitivePatterns = "PASSWORD"
+	PatternSecret SensitivePatterns = "SECRET"
+	PatternToken SensitivePatterns = "TOKEN"
+	PatternAuth SensitivePatterns = "AUTH"
+	PatternCredential SensitivePatterns = "CREDENTIAL"
+	PatternPrivate SensitivePatterns = "PRIVATE"
+)
+
+func (sp SensitivePatterns) IsValid() bool {
+	switch sp {
+	case PatternKey, PatternPassword, PatternSecret, PatternToken, PatternAuth, PatternCredential, PatternPrivate:
+		return true
+	default:
+		return false
+	}
+}
+
 type Configuration struct {
 	Variables map[string]*ConfigValue
 }
