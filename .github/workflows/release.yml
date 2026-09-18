@@ -1,0 +1,71 @@
+name: Automated Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v1.0.1)"
+        required: true
+        default: "v1.0.1"
+
+jobs:
+  release:
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create releases and upload assets
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Run Test Suite
+        run: go test -v -count=1 ./...
+
+      - name: Compile Release Binaries Matrix
+        run: |
+          mkdir -p release-assets
+
+          # Linux AMD64 & ARM64
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o release-assets/x-parity-linux-amd64 ./cmd/cli
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o release-assets/x-parity-linux-arm64 ./cmd/cli
+
+          # macOS Darwin AMD64 & ARM64 (Apple Silicon)
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o release-assets/x-parity-darwin-amd64 ./cmd/cli
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o release-assets/x-parity-darwin-arm64 ./cmd/cli
+
+          # Windows AMD64
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o release-assets/x-parity-windows-amd64.exe ./cmd/cli
+
+          # Generate Cryptographic Checksums
+          cd release-assets
+          sha256sum x-parity-* > checksums.sha256
+          cd ..
+
+      - name: Determine Release Tag
+        id: tag_name
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_name.outputs.tag }}
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

@@ -1,1 +1,12 @@
-scratch
+# Temporary & scratch files
+scratch/
+tmp/
+*.tmp
+*.log
+
+# Local build binaries
+bin/
+*.exe
+
+# Compiled release binaries in dist (distributed via GitHub Releases)
+dist/x-parity-*
